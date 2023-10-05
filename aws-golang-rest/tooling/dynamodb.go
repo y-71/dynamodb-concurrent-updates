@@ -119,7 +119,7 @@ func IsConditionalCheckFailure(err error) bool {
 }
 
 // DeleteAllItems Deletes all the items in the table
-func DeleteAllItems(d *dynamodb.Client, tableName string) error {
+func DeleteAllItems(d *dynamodb.Client, tableName string, unames []string) error {
 	var offset map[string]types.AttributeValue
 	for {
 		scanInput := &dynamodb.ScanInput{
@@ -132,8 +132,22 @@ func DeleteAllItems(d *dynamodb.Client, tableName string) error {
 		if err != nil {
 			return err
 		}
-
+		
 		for _, item := range result.Items {
+			
+			// extract all of the keys from the item
+			keys := make([]string, 0, len(item))
+			for k := range item {
+				keys = append(keys, k)
+			}
+			var subset StringSlice = unames
+
+			if (!subset.IsSubset(keys)){
+				fmt.Println(item)
+				log.Panic("issues with concurrency")
+			}
+
+
 			_, err := d.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
 				TableName: aws.String(tableName),
 				Key:       map[string]types.AttributeValue{"PK": item["PK"], "SK": item["SK"]},
@@ -167,16 +181,10 @@ func UpdateAllItems(d *dynamodb.Client, tableName, uname string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("before ShuffleArray")
-		for _, item := range result.Items {
-			fmt.Println(item)
-		}
-
+		
 		ShuffleArray(result.Items)
 		
-		fmt.Println("after ShuffleArray")
 		for _, item := range result.Items {
-			fmt.Println(item)
 			_, err := d.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
 				ExpressionAttributeValues: map[string]types.AttributeValue{
 					":r": &types.AttributeValueMemberS{Value: "filled"},
@@ -185,13 +193,11 @@ func UpdateAllItems(d *dynamodb.Client, tableName, uname string) error {
 
 				Key:       map[string]types.AttributeValue{"PK": item["PK"], "SK": item["SK"]},
 				// ReturnValues: String("UPDATED_NEW"),
-    			UpdateExpression: aws.String("set Rating = :r"),
+    			UpdateExpression: aws.String(fmt.Sprintf("set %s = :r", uname)),
 			},)
 			if err != nil {
 				log.Fatalf("Got error calling UpdateItem: %s", err)
 			}
-			
-			fmt.Println("Successfully updated")
 		}
 
 		if result.LastEvaluatedKey == nil {

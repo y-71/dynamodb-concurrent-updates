@@ -1,2 +1,3 @@
 aws-sam-java-rest
-aws-golang-rest
+.vscode
+aws-golang-rest/aws-golang-rest

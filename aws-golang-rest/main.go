@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"strconv"
+	"sync"
 
 	tooling "aws-golang-rest/tooling"
 
@@ -13,6 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
+
+var unames []string
 
 const tableName = "go-dynamodb-reference-table"
 
@@ -30,9 +34,9 @@ func main() {
 	log.Println("running seed items example")
 	seedItems(dynamodbClient)
 	log.Println("running delete all items example")
-	updateAllItems(dynamodbClient)
+	updateAllItemsConcurrently(dynamodbClient)
 	log.Println("running delete all items example")
-	deleteAllItems(dynamodbClient)
+	deleteAllItems(dynamodbClient, unames)
 	log.Println("completed")
 }
 
@@ -102,17 +106,42 @@ func putItem(d *dynamodb.Client, tableName string, item map[string]types.Attribu
 	return err
 }
 
-func deleteAllItems(dynamodbClient *dynamodb.Client) {
-	err := tooling.DeleteAllItems(dynamodbClient, tableName)
+func deleteAllItems(dynamodbClient *dynamodb.Client, unames []string) {
+	err := tooling.DeleteAllItems(dynamodbClient, tableName, unames)
 	if err != nil {
 		log.Fatal("failed to delete all items", err)
 	}
 }
 
-func updateAllItems(dynamodbClient *dynamodb.Client) {
-	uname := tooling.GetRandomName(1)
+func updateAllItems(dynamodbClient *dynamodb.Client, uname string) {
 	err := tooling.UpdateAllItems(dynamodbClient, tableName, uname)
 	if err != nil {
 		log.Fatal("failed to delete all items", err)
 	}
+}
+
+func worker(id int, dynamodbClient *dynamodb.Client, uname string, wg *sync.WaitGroup) {
+    defer wg.Done() // Decrement the WaitGroup counter when the function exits
+    fmt.Printf("Worker %d started\n", id)
+	updateAllItems(dynamodbClient, uname)
+    fmt.Printf("Worker %d finished\n", id)
+}
+
+
+func updateAllItemsConcurrently(dynamodbClient *dynamodb.Client){
+	var wg sync.WaitGroup
+
+    numWorkers := 100
+
+    for i := 0; i < numWorkers; i++ {
+        wg.Add(1) // Increment the WaitGroup counter for each worker
+		uname := tooling.GetRandomName(1)
+		unames = append(unames, uname)
+        go worker(i, dynamodbClient, uname, &wg)
+    }
+
+    // Wait for all workers to finish
+    wg.Wait()
+
+    fmt.Println("All workers have finished")
 }

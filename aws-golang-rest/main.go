@@ -75,7 +75,8 @@ func putItemConditionCheckFailureExample(dynamodbClient *dynamodb.Client) {
 
 func seedItems(dynamodbClient *dynamodb.Client) {
 	tooling.CreateTableIfNotExists(dynamodbClient, tableName)
-	for i := 0; i < 500; i++ {
+	numItems := 500
+	for i := 0; i < numItems; i++ {
 		item := map[string]types.AttributeValue{
 			"PK":            &types.AttributeValueMemberS{Value: "PK-" + strconv.Itoa(i)},
 			"SK":            &types.AttributeValueMemberS{Value: "A"},
@@ -131,7 +132,7 @@ func worker(id int, dynamodbClient *dynamodb.Client, uname string, wg *sync.Wait
 func updateAllItemsConcurrently(dynamodbClient *dynamodb.Client){
 	var wg sync.WaitGroup
 
-    numWorkers := 100
+    numWorkers := 300
 
     for i := 0; i < numWorkers; i++ {
         wg.Add(1) // Increment the WaitGroup counter for each worker

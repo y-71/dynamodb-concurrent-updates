@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
 	"github.com/aws/smithy-go"
 )
 
@@ -23,8 +24,8 @@ import (
 func CreateLocalClient(port int) *dynamodb.Client {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion("us-east-1"),
-		config.WithEndpointResolver(aws.EndpointResolverFunc(
-			func(service, region string) (aws.Endpoint, error) {
+		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
+			func(service, region string, options ...interface{})(aws.Endpoint, error) {
 				return aws.Endpoint{URL: fmt.Sprintf("http://localhost:%d", port)}, nil
 			})),
 		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
@@ -152,6 +153,7 @@ func DeleteAllItems(d *dynamodb.Client, tableName string) error {
 
 }
 
+
 func UpdateAllItems(d *dynamodb.Client, tableName, uname string) error {
 	var offset map[string]types.AttributeValue
 	for {
@@ -175,6 +177,21 @@ func UpdateAllItems(d *dynamodb.Client, tableName, uname string) error {
 		fmt.Println("after ShuffleArray")
 		for _, item := range result.Items {
 			fmt.Println(item)
+			_, err := d.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+				ExpressionAttributeValues: map[string]types.AttributeValue{
+					":r": &types.AttributeValueMemberS{Value: "filled"},
+				},
+				TableName: aws.String(tableName),
+
+				Key:       map[string]types.AttributeValue{"PK": item["PK"], "SK": item["SK"]},
+				// ReturnValues: String("UPDATED_NEW"),
+    			UpdateExpression: aws.String("set Rating = :r"),
+			},)
+			if err != nil {
+				log.Fatalf("Got error calling UpdateItem: %s", err)
+			}
+			
+			fmt.Println("Successfully updated")
 		}
 
 		if result.LastEvaluatedKey == nil {

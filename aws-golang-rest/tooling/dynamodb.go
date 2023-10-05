@@ -1,4 +1,4 @@
-package dynamodb
+package tooling
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -153,7 +152,7 @@ func DeleteAllItems(d *dynamodb.Client, tableName string) error {
 
 }
 
-func UpdateAllItems(d *dynamodb.Client, tableName string) error {
+func UpdateAllItems(d *dynamodb.Client, tableName, uname string) error {
 	var offset map[string]types.AttributeValue
 	for {
 		scanInput := &dynamodb.ScanInput{
@@ -189,8 +188,6 @@ func UpdateAllItems(d *dynamodb.Client, tableName string) error {
 
 // ShuffleArray shuffles an array of any type using the Fisher-Yates algorithm.
 func ShuffleArray(arr interface{}) {
-	rand.Seed(time.Now().UnixNano())
-
 	swap := reflect.Swapper(arr)
 	length := reflect.ValueOf(arr).Len()
 
